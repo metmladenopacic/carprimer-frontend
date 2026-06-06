@@ -9,21 +9,23 @@ Sistem ima **dva repozitorijuma**:
 
 ## Kako pipeline radi (na svaki `git push` na `main`)
 
+Svaki repo ima **jedan** workflow `.github/workflows/ci-cd.yml` sa dva job-a. Deploy **čeka** da testovi prođu (`needs: test`), i pokreće se **samo na push na `main`** (ne na pull request):
+
 ```
-push -> GitHub Actions
-          ├─ CI workflow:      build + testovi (backend: mvnw verify, frontend: lint + build)
-          └─ Docker workflow:  build image -> push na Docker Hub -> POST /deploys na Render
+push -> GitHub Actions (ci-cd.yml)
+          job: test     (push i PR)   build + testovi
+                │  (samo ako prođe)
+                ▼
+          job: deploy   (samo push)   build image -> Docker Hub -> POST /deploys na Render
                                                                       └─ Render povuče :latest i redeployuje
 ```
 
-- **Backend** (`.github/workflows/`):
-  - `backend-ci.yml` → `./mvnw clean verify` (build + JUnit testovi).
-  - `docker-publish.yml` → JAR → Docker image → Docker Hub → Render deploy.
-- **Frontend** (`.github/workflows/`):
-  - `frontend-ci.yml` → `npm ci` + `npm run lint` + `npm run build`.
-  - `docker-publish.yml` → Docker image (nginx) → Docker Hub → Render deploy.
+- **Backend** `test`: `./mvnw clean verify` (build + JUnit testovi).
+  **Backend** `deploy`: JAR (`-DskipTests`, već su prošli) → Docker image → Docker Hub → Render.
+- **Frontend** `test`: `npm ci` + `npm run lint` + `npm run build`.
+  **Frontend** `deploy`: Docker image (nginx) → Docker Hub → Render.
 
-> ⚠️ **Napomena o redosledu:** CI i Docker workflow se pokreću **paralelno**. To znači da se deploy okine i ako testovi padnu. Ako želiš da deploy čeka zelene testove, vidi sekciju [„Opciono: testovi kao uslov za deploy"](#opciono-testovi-kao-uslov-za-deploy).
+> ✅ Ako testovi padnu, `deploy` job se **ne pokreće** — na Render ne odlazi pokvarena verzija. Pull request-ovi pokreću samo `test` (bez deploy-a).
 
 ---
 
@@ -133,12 +135,6 @@ Postavi u **svakom** repo-u: **Settings → Secrets and variables → Actions �
 4. Prati **Actions** tab na GitHub-u (build + push + deploy trigger).
 5. Prati **Logs** na Render-u (povlačenje image-a i start aplikacije).
 6. Test: otvori frontend Render URL → uloguj se → proveri da se liste učitavaju.
-
----
-
-## Opciono: testovi kao uslov za deploy
-
-Trenutno deploy ne čeka testove. Ako želiš da Docker/deploy krene **samo ako testovi prođu**, dodaj na početak `build` job-a u `docker-publish.yml` zavisnost od CI workflow-a, npr. kroz `workflow_run` trigger ili spajanjem oba job-a u jedan workflow sa `needs:`. Reci ako želiš da to prepravim.
 
 ---
 

@@ -1,13 +1,41 @@
-name: Docker Build and Push (Frontend)
+name: Frontend CI/CD
 
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build:
+  # 1) Uvek: lint + build (i na push i na PR)
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout koda
+        uses: actions/checkout@v4
 
+      - name: Postavi Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instaliraj zavisnosti
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (tsc + vite)
+        run: npm run build
+        env:
+          VITE_API_URL: /api
+
+  # 2) Samo na push na main I samo ako 'test' prođe: image -> Docker Hub -> Render
+  deploy:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
