@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# VITE_API_URL se "zapeče" u build u trenutku `npm run build`.
+# Podrazumevano /api -> nginx (vidi nginx.conf) proksira na backend.
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # Serve stage
