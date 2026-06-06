@@ -21,7 +21,7 @@ export const LoginForm = ({ onLogin }: { onLogin: () => void }) => {
       });
       localStorage.setItem('token', response.data.accessToken);
       onLogin();
-    } catch (err) {
+    } catch {
       setError('Pogrešan username ili password');
     }
   };
